@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm test)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(npm run lint)",
+      "mcp__memory__read_graph",
+      "mcp__memory__create_entities",
+      "mcp__memory__add_observations",
+      "Bash(npx next lint:*)",
+      "Bash(ls:*)",
+      "Bash(rg:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}

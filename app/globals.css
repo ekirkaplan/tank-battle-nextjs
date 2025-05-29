@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-900 text-white;
+  }
+}
+
+@layer components {
+  .game-canvas {
+    @apply border-2 border-gray-600 bg-game-bg;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+  
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-tank-red to-tank-yellow text-white font-bold rounded-lg
+           hover:shadow-lg hover:scale-105 transition-all duration-200 disabled:opacity-50 
+           disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg
+           focus:outline-none focus:border-tank-yellow focus:ring-1 focus:ring-tank-yellow
+           placeholder-gray-500 transition-colors;
+  }
+}
