@@ -551,23 +551,25 @@ function updateGameState() {
           }
           
           if (player.health <= 0) {
-            // Player killed
-            gameState.players[bullet.playerId].score += 1
-            
-            // Track kills/deaths
-            if (sessionStats[bullet.playerId]) {
-              sessionStats[bullet.playerId].kills += 1
-            }
-            if (sessionStats[playerObj.id]) {
-              sessionStats[playerObj.id].deaths += 1
-            }
-            
-            // Send kill message to chat
+            // Player killed - check if killer still exists
             const killer = gameState.players[bullet.playerId]
             if (killer) {
+              killer.score += 1
+              
+              // Track kills for killer
+              if (sessionStats[bullet.playerId]) {
+                sessionStats[bullet.playerId].kills += 1
+              }
+              
+              // Send kill message to chat
               chatManager.addKillMessage(killer.username, player.username).then(killMsg => {
                 if (killMsg) io.emit('chatMessage', killMsg)
               })
+            }
+            
+            // Track deaths for victim
+            if (sessionStats[playerObj.id]) {
+              sessionStats[playerObj.id].deaths += 1
             }
             
             io.to(playerObj.id).emit('death')

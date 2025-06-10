@@ -11,7 +11,9 @@
       "mcp__memory__add_observations",
       "Bash(npx next lint:*)",
       "Bash(ls:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "mcp__brave-search__brave_web_search",
+      "Bash(npm run dev:*)"
     ]
   },
   "enableAllProjectMcpServers": false
