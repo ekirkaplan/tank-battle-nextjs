@@ -13,7 +13,8 @@
       "Bash(ls:*)",
       "Bash(rg:*)",
       "mcp__brave-search__brave_web_search",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "mcp__memory__create_relations"
     ]
   },
   "enableAllProjectMcpServers": false
