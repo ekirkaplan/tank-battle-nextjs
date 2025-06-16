@@ -83,10 +83,16 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }, [isOpen])
 
   const fetchClanData = async () => {
+    const authToken = localStorage.getItem('authToken')
     setIsLoading(true)
     try {
       // Get player's clan
-      const response = await fetch('/api/clan')
+      const response = await fetch('/api/clan', {
+        credentials: 'include',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         if (data.clan) {
@@ -106,8 +112,14 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const fetchAvailableClans = async () => {
+    const authToken = localStorage.getItem('authToken')
     try {
-      const response = await fetch('/api/clan?public=true')
+      const response = await fetch('/api/clan?public=true', {
+        credentials: 'include',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setAvailableClans(data.clans || [])
@@ -118,8 +130,14 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const fetchPendingInvites = async () => {
+    const authToken = localStorage.getItem('authToken')
     try {
-      const response = await fetch('/api/clan/invite')
+      const response = await fetch('/api/clan/invite', {
+        credentials: 'include',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setPendingInvites(data.invites || [])
@@ -130,6 +148,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const searchPlayers = async (query: string) => {
+    const authToken = localStorage.getItem('authToken')
     if (query.length < 2) {
       setSearchResults([])
       return
@@ -137,7 +156,12 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
 
     setIsSearching(true)
     try {
-      const response = await fetch(`/api/player/search?q=${encodeURIComponent(query)}`)
+      const response = await fetch(`/api/player/search?q=${encodeURIComponent(query)}`, {
+        credentials: 'include',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setSearchResults(data.players || [])
@@ -150,6 +174,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const sendInvite = async (username?: string) => {
+    const authToken = localStorage.getItem('authToken')
     const targetUsername = username || inviteUsername.trim()
     if (!targetUsername) {
       toast.error('Please select or enter a username')
@@ -160,8 +185,12 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
     try {
       const response = await fetch('/api/clan/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: targetUsername })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        },
+        body: JSON.stringify({ username: targetUsername }),
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -180,14 +209,19 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const kickPlayer = async (playerId: string, username: string) => {
+    const authToken = localStorage.getItem('authToken')
     if (!confirm(`Are you sure you want to kick ${username} from the clan?`)) return
 
     setIsLoading(true)
     try {
       const response = await fetch('/api/clan/kick', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        },
+        body: JSON.stringify({ playerId }),
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -205,6 +239,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const changeRole = async (playerId: string, username: string, newRole: string) => {
+    const authToken = localStorage.getItem('authToken')
     const roleNames = { 'leader': 'Leader', 'officer': 'Officer', 'member': 'Member' }
     const action = newRole === 'leader' ? 'promote' : newRole === 'officer' ? 'promote' : 'demote'
     
@@ -214,8 +249,12 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
     try {
       const response = await fetch('/api/clan/promote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, newRole })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        },
+        body: JSON.stringify({ playerId, newRole }),
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -233,12 +272,17 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const respondToInvite = async (inviteId: string, response: 'accept' | 'reject') => {
+    const authToken = localStorage.getItem('authToken')
     setIsLoading(true)
     try {
       const res = await fetch('/api/clan/invite/respond', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteId, response })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        },
+        body: JSON.stringify({ inviteId, response }),
+        credentials: 'include'
       })
 
       const data = await res.json()
@@ -260,6 +304,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const createClan = async () => {
+    const authToken = localStorage.getItem('authToken')
     if (!createForm.name || !createForm.tag) {
       toast.error('Please fill in all required fields')
       return
@@ -269,7 +314,10 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
     try {
       const response = await fetch('/api/clan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        },
         body: JSON.stringify({
           name: createForm.name,
           tag: createForm.tag,
@@ -279,7 +327,8 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
             minLevel: createForm.minLevel,
             minKills: createForm.minKills
           }
-        })
+        }),
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -297,12 +346,17 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const joinClan = async (clanId: string) => {
+    const authToken = localStorage.getItem('authToken')
     setIsLoading(true)
     try {
       const response = await fetch('/api/clan/join', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clanId })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        },
+        body: JSON.stringify({ clanId }),
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -320,12 +374,17 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   }
 
   const leaveClan = async () => {
+    const authToken = localStorage.getItem('authToken')
     if (!confirm('Are you sure you want to leave the clan?')) return
 
     setIsLoading(true)
     try {
       const response = await fetch('/api/clan/leave', {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : ''
+        }
       })
 
       const data = await response.json()
@@ -347,7 +406,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-gray-900 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-blitz-bg/95 border border-blitz-neon/20 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col shadow-[0_0_30px_rgba(0,235,215,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -367,8 +426,8 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
               onClick={() => setActiveTab('my-clan')}
               className={`px-4 py-2 rounded transition-colors ${
                 activeTab === 'my-clan'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? 'bg-blitz-neon/20 text-blitz-neon border border-blitz-neon/50'
+                  : 'bg-blitz-bg/50 text-gray-300 hover:bg-blitz-neon/10 border border-transparent'
               }`}
             >
               My Clan
@@ -383,8 +442,8 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                 }}
                 className={`px-4 py-2 rounded transition-colors ${
                   activeTab === 'browse'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    ? 'bg-blitz-neon/20 text-blitz-neon border border-blitz-neon/50'
+                    : 'bg-blitz-bg/50 text-gray-300 hover:bg-blitz-neon/10 border border-transparent'
                 }`}
               >
                 Browse Clans
@@ -396,8 +455,8 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                 }}
                 className={`px-4 py-2 rounded transition-colors ${
                   activeTab === 'invites'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    ? 'bg-blitz-neon/20 text-blitz-neon border border-blitz-neon/50'
+                    : 'bg-blitz-bg/50 text-gray-300 hover:bg-blitz-neon/10 border border-transparent'
                 }`}
               >
                 Invites {pendingInvites.length > 0 && `(${pendingInvites.length})`}
@@ -409,14 +468,24 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
               onClick={() => setActiveTab('create')}
               className={`px-4 py-2 rounded transition-colors ${
                 activeTab === 'create'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? 'bg-blitz-neon/20 text-blitz-neon border border-blitz-neon/50'
+                  : 'bg-blitz-bg/50 text-gray-300 hover:bg-blitz-neon/10 border border-transparent'
               }`}
             >
               Create Clan
             </button>
           )}
         </div>
+
+        {/* Show message for players below level 5 */}
+        {!currentClan && playerData?.level?.current < 5 && (
+          <div className="mb-4 p-4 bg-blitz-copper/20 border border-blitz-copper/50 rounded-lg">
+            <p className="text-blitz-copper">
+              <span className="font-bold">Level Requirement:</span> You need to reach level 5 to create a clan. 
+              Current level: {playerData?.level?.current || 1}
+            </p>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
@@ -646,7 +715,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                         type="text"
                         value={createForm.name}
                         onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                        className="w-full p-2 rounded bg-gray-800 border border-gray-700"
+                        className="w-full p-2 rounded bg-blitz-bg/50 border border-blitz-neon/20 focus:border-blitz-neon focus:outline-none"
                         maxLength={30}
                       />
                     </div>
@@ -656,7 +725,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                         type="text"
                         value={createForm.tag}
                         onChange={(e) => setCreateForm({ ...createForm, tag: e.target.value.toUpperCase() })}
-                        className="w-full p-2 rounded bg-gray-800 border border-gray-700"
+                        className="w-full p-2 rounded bg-blitz-bg/50 border border-blitz-neon/20 focus:border-blitz-neon focus:outline-none"
                         maxLength={5}
                       />
                     </div>
@@ -667,7 +736,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                     <textarea
                       value={createForm.description}
                       onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                      className="w-full p-2 rounded bg-gray-800 border border-gray-700"
+                      className="w-full p-2 rounded bg-blitz-bg/50 border border-blitz-neon/20 focus:border-blitz-neon focus:outline-none"
                       rows={3}
                       maxLength={200}
                     />
@@ -690,7 +759,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                         type="number"
                         value={createForm.minLevel}
                         onChange={(e) => setCreateForm({ ...createForm, minLevel: parseInt(e.target.value) || 1 })}
-                        className="w-full p-2 rounded bg-gray-800 border border-gray-700"
+                        className="w-full p-2 rounded bg-blitz-bg/50 border border-blitz-neon/20 focus:border-blitz-neon focus:outline-none"
                         min={1}
                       />
                     </div>
@@ -700,7 +769,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
                         type="number"
                         value={createForm.minKills}
                         onChange={(e) => setCreateForm({ ...createForm, minKills: parseInt(e.target.value) || 0 })}
-                        className="w-full p-2 rounded bg-gray-800 border border-gray-700"
+                        className="w-full p-2 rounded bg-blitz-bg/50 border border-blitz-neon/20 focus:border-blitz-neon focus:outline-none"
                         min={0}
                       />
                     </div>
@@ -708,7 +777,7 @@ export default function ClanModal({ isOpen, onClose, playerData }: ClanModalProp
 
                   <button
                     onClick={createClan}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                    className="px-6 py-2 bg-gradient-to-r from-blitz-copper to-blitz-neon text-blitz-bg font-bold rounded hover:shadow-[0_0_15px_rgba(0,235,215,0.5)] transition-all"
                     disabled={isLoading || !createForm.name || !createForm.tag}
                   >
                     Create Clan

@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import LoadingSkeleton from './LoadingSkeleton'
 
-export default function AuthForm() {
+interface AuthFormProps {
+  onSuccess?: () => void
+}
+
+export default function AuthForm({ onSuccess }: AuthFormProps) {
   const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
@@ -73,8 +77,10 @@ export default function AuthForm() {
 
       toast.success(isLogin ? 'Welcome back!' : 'Account created successfully!')
       
-      // Navigate to game
-      window.location.href = '/game'
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (error: any) {
       toast.error(error.message)
     } finally {
@@ -84,20 +90,20 @@ export default function AuthForm() {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="bg-gray-800 rounded-xl shadow-2xl p-8">
-        <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-tank-red to-tank-yellow bg-clip-text text-transparent">
-          Tank Battle Arena
+      <div className="bg-blitz-bg/90 border border-blitz-neon/20 rounded-xl shadow-[0_0_30px_rgba(0,235,215,0.2)] p-8 backdrop-blur-sm">
+        <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-blitz-copper to-blitz-neon bg-clip-text text-transparent">
+          BLITZCORE
         </h1>
         <p className="text-gray-400 text-center mb-8">Join the battlefield!</p>
 
-        <div className="flex mb-6 bg-gray-700 rounded-lg p-1">
+        <div className="flex mb-6 bg-blitz-bg/50 rounded-lg p-1 border border-blitz-neon/10">
           <button
             type="button"
             onClick={() => setIsLogin(true)}
             className={`flex-1 py-2 px-4 rounded-md transition-all ${
               isLogin
-                ? 'bg-gray-800 text-white shadow-md'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-blitz-neon/10 text-blitz-neon shadow-[0_0_10px_rgba(0,235,215,0.3)]'
+                : 'text-gray-400 hover:text-blitz-neon'
             }`}
           >
             Login
@@ -107,8 +113,8 @@ export default function AuthForm() {
             onClick={() => setIsLogin(false)}
             className={`flex-1 py-2 px-4 rounded-md transition-all ${
               !isLogin
-                ? 'bg-gray-800 text-white shadow-md'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-blitz-neon/10 text-blitz-neon shadow-[0_0_10px_rgba(0,235,215,0.3)]'
+                : 'text-gray-400 hover:text-blitz-neon'
             }`}
           >
             Register

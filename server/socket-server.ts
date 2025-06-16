@@ -185,6 +185,27 @@ io.on('connection', async (socket) => {
   }
   playerPowerUps[socket.id] = new PlayerPowerUpManager()
   
+  console.log(`Session initialized for ${playerData.username}:`, {
+    socketId: socket.id,
+    userId: userId,
+    sessionStats: sessionStats[socket.id]
+  })
+  
+  // Check if player has recent death time
+  let isRespawning = false
+  let respawnTimeRemaining = 0
+  
+  if (playerData.lastDeathTime) {
+    const timeSinceDeath = Date.now() - new Date(playerData.lastDeathTime).getTime()
+    const respawnDelay = 40000 // 40 seconds
+    
+    if (timeSinceDeath < respawnDelay) {
+      isRespawning = true
+      respawnTimeRemaining = Math.ceil((respawnDelay - timeSinceDeath) / 1000)
+      console.log(`Player ${playerData.username} is still respawning. Time remaining: ${respawnTimeRemaining}s`)
+    }
+  }
+  
   // Create new player with attributes
   const baseHealth = 100
   const baseSpeed = 3
@@ -193,11 +214,29 @@ io.on('connection', async (socket) => {
   // Find safe spawn position (not colliding with obstacles)
   let spawnX, spawnY
   let attempts = 0
-  do {
-    spawnX = 100 + Math.random() * (gameState.arena.width - 200)
-    spawnY = 100 + Math.random() * (gameState.arena.height - 200)
-    attempts++
-  } while (obstacleManager.checkCollision(spawnX, spawnY, 30) && attempts < 50)
+  
+  // Check if player has saved position
+  if (playerData.position && playerData.position.x !== -1 && playerData.position.y !== -1) {
+    // Use saved position if valid and not colliding
+    if (!obstacleManager.checkCollision(playerData.position.x, playerData.position.y, 30)) {
+      spawnX = playerData.position.x
+      spawnY = playerData.position.y
+    } else {
+      // Saved position is blocked, find new one
+      do {
+        spawnX = 100 + Math.random() * (gameState.arena.width - 200)
+        spawnY = 100 + Math.random() * (gameState.arena.height - 200)
+        attempts++
+      } while (obstacleManager.checkCollision(spawnX, spawnY, 30) && attempts < 50)
+    }
+  } else {
+    // No saved position, find random spawn
+    do {
+      spawnX = 100 + Math.random() * (gameState.arena.width - 200)
+      spawnY = 100 + Math.random() * (gameState.arena.height - 200)
+      attempts++
+    } while (obstacleManager.checkCollision(spawnX, spawnY, 30) && attempts < 50)
+  }
   
   const player: GamePlayer = {
     id: socket.id,
@@ -206,7 +245,7 @@ io.on('connection', async (socket) => {
     x: spawnX,
     y: spawnY,
     angle: 0,
-    health: baseHealth + (playerData.attributes.health * 10), // +10 HP per point
+    health: isRespawning ? 0 : baseHealth + (playerData.attributes.health * 10), // 0 HP if respawning
     maxHealth: baseHealth + (playerData.attributes.health * 10),
     speed: baseSpeed + (playerData.attributes.speed * 0.3), // +0.3 speed per point
     damage: baseDamage + (playerData.attributes.damage * 5), // +5 damage per point
@@ -225,26 +264,61 @@ io.on('connection', async (socket) => {
   
   gameState.players[socket.id] = player
   
-  // Add player to spatial grid
-  playerGrid.insert({
-    id: socket.id,
-    x: player.x - 20,
-    y: player.y - 20,
-    width: 40,
-    height: 40
-  })
+  // Only add to spatial grid if not respawning
+  if (!isRespawning) {
+    playerGrid.insert({
+      id: socket.id,
+      x: player.x - 20,
+      y: player.y - 20,
+      width: 40,
+      height: 40
+    })
+  }
   
   // Send initial game state with chat history
   const chatHistory = await chatManager.getRecentMessages()
   socket.emit('init', {
     playerId: socket.id,
     playerData: {
+      _id: playerData._id.toString(),
       username: player.username,
-      stats: playerData.stats
+      stats: playerData.stats,
+      level: playerData.level,
+      attributes: playerData.attributes,
+      clan: playerData.clan,
+      tankColor: playerData.tankColor
     },
     gameState: deltaCompressor.createPlayerSnapshot(socket.id, gameState),
-    chatHistory: chatHistory
+    chatHistory: chatHistory,
+    isRespawning: isRespawning,
+    respawnTimeRemaining: respawnTimeRemaining
   })
+  
+  // If respawning, set timer to respawn
+  if (isRespawning) {
+    setTimeout(() => {
+      if (gameState.players[socket.id]) {
+        player.health = player.maxHealth
+        
+        // Add player to spatial grid
+        playerGrid.insert({
+          id: socket.id,
+          x: player.x - 20,
+          y: player.y - 20,
+          width: 40,
+          height: 40
+        })
+        
+        // Clear death time in database
+        Player.findByIdAndUpdate(userId, { $unset: { lastDeathTime: 1 } }).catch(err => {
+          console.error('Error clearing death time:', err)
+        })
+        
+        // Notify client of respawn
+        socket.emit('respawn')
+      }
+    }, respawnTimeRemaining * 1000)
+  }
   
   // Notify other players
   socket.broadcast.emit('playerJoined', player)
@@ -304,6 +378,16 @@ io.on('connection', async (socket) => {
   // Handle shooting
   socket.on('shoot', () => {
     const player = gameState.players[socket.id]
+    if (!player) {
+      console.error('Shoot event: Player not found for socket:', socket.id)
+      return
+    }
+    
+    console.log(`Shoot event from ${player.username}:`, {
+      damage: player.damage,
+      socketId: socket.id
+    })
+    
     const powerUpManager = playerPowerUps[socket.id]
     const fireRateMultiplier = powerUpManager ? powerUpManager.getFireRateMultiplier() : 1
     const damageMultiplier = powerUpManager ? powerUpManager.getDamageMultiplier() : 1
@@ -316,14 +400,23 @@ io.on('connection', async (socket) => {
     if (player && Date.now() - player.lastShot > fireCooldown) {
       player.lastShot = Date.now()
       
+      const bulletDamage = player.damage * damageMultiplier
+      console.log(`Creating bullet with damage: ${bulletDamage} (base: ${player.damage}, multiplier: ${damageMultiplier})`)
+      
       const bullet = bulletPool.createBullet(
         socket.id,
         player.x + Math.cos(player.angle) * 30,
         player.y + Math.sin(player.angle) * 30,
         Math.cos(player.angle) * 10,
         Math.sin(player.angle) * 10,
-        player.damage * damageMultiplier
+        bulletDamage
       )
+      
+      console.log('Created bullet:', {
+        id: bullet.id,
+        damage: bullet.damage,
+        playerId: bullet.playerId
+      })
       
       gameState.bullets[bullet.id] = bullet
       
@@ -355,17 +448,41 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', async () => {
     console.log('Player disconnected:', socket.id)
     
-    // Save session stats
-    if (sessionStats[socket.id] && playerSessions[socket.id]) {
+    // Save player position and any remaining session stats
+    if (playerSessions[socket.id]) {
       try {
         const player = await Player.findById(playerSessions[socket.id])
-        if (player) {
+        if (player && gameState.players[socket.id]) {
+          // Save position
+          player.position = {
+            x: gameState.players[socket.id].x,
+            y: gameState.players[socket.id].y
+          }
+          
+          // Save any remaining session stats that weren't saved during gameplay
           const stats = sessionStats[socket.id]
-          stats.score = gameState.players[socket.id]?.score || 0
-          await player.updateStats(stats)
+          if (stats && (stats.damageDealt > 0 || stats.damageTaken > 0 || stats.score > 0)) {
+            player.stats.totalDamageDealt += stats.damageDealt || 0
+            player.stats.totalDamageTaken += stats.damageTaken || 0
+            
+            const score = gameState.players[socket.id]?.score || 0
+            if (score > player.stats.highestScore) {
+              player.stats.highestScore = score
+            }
+            
+            // Add experience for damage dealt
+            const expGained = (stats.damageDealt || 0) * 0.5 + score * 10
+            if (expGained > 0) {
+              await player.addExperience(expGained)
+            }
+          }
+          
+          player.lastSeen = new Date()
+          await player.save()
+          console.log(`Saved position (${player.position.x}, ${player.position.y}) and stats for ${player.username}`)
         }
       } catch (error) {
-        console.error('Error saving player stats:', error)
+        console.error('Error saving player data on disconnect:', error)
       }
     }
     
@@ -538,28 +655,170 @@ function updateGameState() {
           const finalDamage = bullet.damage * (1 - damageReduction)
           
           player.health -= finalDamage
-          delete gameState.bullets[bulletId]
-          bulletGrid.remove(bulletId)
-          bulletPool.releaseBullet(bullet)
           
-          // Track damage
-          if (sessionStats[bullet.playerId]) {
-            sessionStats[bullet.playerId].damageDealt += bullet.damage
+          // Track and save damage immediately BEFORE releasing bullet
+          const bulletDamage = bullet.damage // Save damage before releasing
+          const bulletPlayerId = bullet.playerId // Save playerId before releasing
+          
+          if (sessionStats[bulletPlayerId]) {
+            sessionStats[bulletPlayerId].damageDealt += bulletDamage
+            
+            // Update attacker's damage dealt in database
+            const attackerUserId = playerSessions[bulletPlayerId]
+            if (attackerUserId) {
+              console.log(`Updating damage dealt for attacker: ${attackerUserId}, damage: ${bulletDamage}`)
+              Player.findByIdAndUpdate(
+                attackerUserId,
+                { 
+                  $inc: { 'stats.totalDamageDealt': bulletDamage },
+                  $set: { lastSeen: new Date() }
+                },
+                { new: true }
+              ).then(result => {
+                if (!result) {
+                  console.error('Attacker not found in database:', attackerUserId)
+                } else {
+                  console.log('Damage dealt updated successfully')
+                }
+              }).catch(err => {
+                console.error('Error updating attacker damage stats:', err)
+              })
+            }
           }
           if (sessionStats[playerObj.id]) {
-            sessionStats[playerObj.id].damageTaken += bullet.damage
+            sessionStats[playerObj.id].damageTaken += bulletDamage
+            
+            // Update defender's damage taken in database
+            const defenderUserId = playerSessions[playerObj.id]
+            if (defenderUserId) {
+              console.log(`Updating damage taken for defender: ${defenderUserId}, damage: ${bullet.damage}`)
+              Player.findByIdAndUpdate(
+                defenderUserId,
+                { 
+                  $inc: { 'stats.totalDamageTaken': bulletDamage },
+                  $set: { lastSeen: new Date() }
+                },
+                { new: true }
+              ).then(result => {
+                if (!result) {
+                  console.error('Defender not found in database:', defenderUserId)
+                } else {
+                  console.log('Damage taken updated successfully')
+                }
+              }).catch(err => {
+                console.error('Error updating defender damage stats:', err)
+              })
+            }
           }
           
           if (player.health <= 0) {
             // Player killed - check if killer still exists
-            const killer = gameState.players[bullet.playerId]
+            const killer = gameState.players[bulletPlayerId]
             if (killer) {
               killer.score += 1
               
               // Track kills for killer
-              if (sessionStats[bullet.playerId]) {
-                sessionStats[bullet.playerId].kills += 1
+              console.log('\n=== KILL EVENT START ===')
+              console.log('Timestamp:', new Date().toISOString())
+              console.log('Bullet info:', { playerId: bulletPlayerId, damage: bulletDamage })
+              console.log('Killer info:', { username: killer.username, id: killer.id, userId: playerSessions[bulletPlayerId] })
+              console.log('Victim info:', { username: player.username, id: playerObj.id, userId: playerSessions[playerObj.id] })
+              console.log('SessionStats for killer:', sessionStats[bulletPlayerId])
+              console.log('SessionStats for victim:', sessionStats[playerObj.id])
+              
+              if (sessionStats[bulletPlayerId]) {
+                sessionStats[bulletPlayerId].kills += 1
+                console.log(`Kill tracked in session: ${killer.username} killed ${player.username}. Session kills: ${sessionStats[bulletPlayerId].kills}`)
+                
+                // Update killer stats in database immediately
+                const killerUserId = playerSessions[bulletPlayerId]
+                console.log(`Looking up killer userId for socketId ${bulletPlayerId}: ${killerUserId}`)
+                
+                if (killerUserId) {
+                  // Update database and emit new stats
+                  Player.findByIdAndUpdate(
+                    killerUserId,
+                    { 
+                      $inc: { 
+                        'stats.totalKills': 1
+                      },
+                      $set: { lastSeen: new Date() }
+                    },
+                    { new: true }
+                  ).then(killerPlayer => {
+                    console.log('Database update response:', killerPlayer ? 'Player found' : 'Player not found')
+                    if (killerPlayer) {
+                      console.log('Updated stats in DB:', {
+                        username: killerPlayer.username,
+                        totalKills: killerPlayer.stats.totalKills,
+                        totalDeaths: killerPlayer.stats.totalDeaths,
+                        totalDamageDealt: killerPlayer.stats.totalDamageDealt
+                      })
+                      
+                      // Calculate experience for the kill
+                      const expGained = 50 // 50 XP per kill
+                      console.log('Adding experience to killer:', {
+                        username: killerPlayer.username,
+                        expGained,
+                        currentTotalXP: killerPlayer.level.totalExperience,
+                        currentXP: killerPlayer.level.experience,
+                        currentLevel: killerPlayer.level.current
+                      })
+                      
+                      killerPlayer.addExperience(expGained).then(async levelResult => {
+                        console.log('Experience added:', {
+                          leveledUp: levelResult.leveledUp,
+                          newLevel: levelResult.newLevel,
+                          newTotalXP: killerPlayer.level.totalExperience,
+                          newCurrentXP: killerPlayer.level.experience
+                        })
+                        
+                        // Ensure the player document is saved with new XP
+                        await killerPlayer.save()
+                        
+                        const statsUpdate = {
+                          totalKills: killerPlayer.stats.totalKills,
+                          totalDeaths: killerPlayer.stats.totalDeaths
+                        }
+                        console.log(`Emitting statsUpdate to socket ${bulletPlayerId}:`, statsUpdate)
+                        
+                        // Try both targeted and broadcast emit
+                        io.to(bulletPlayerId).emit('statsUpdate', statsUpdate)
+                        
+                        // Also try direct socket emit if socket exists
+                        const killerSocket = io.sockets.sockets.get(bulletPlayerId)
+                        if (killerSocket) {
+                          console.log('Direct emit to killer socket')
+                          killerSocket.emit('statsUpdate', statsUpdate)
+                        } else {
+                          console.log('WARNING: Killer socket not found for direct emit')
+                        }
+                        
+                        if (levelResult.leveledUp) {
+                          io.to(bulletPlayerId).emit('levelUp', {
+                            newLevel: levelResult.newLevel,
+                            attributePoints: levelResult.attributePoints
+                          })
+                        }
+                      })
+                    } else {
+                      console.log('Killer player not found in database')
+                    }
+                  }).catch(err => {
+                    console.error('Error updating killer stats:', err)
+                    console.error('Full error:', err.stack)
+                  })
+                } else {
+                  console.error('ERROR: Killer userId not found in playerSessions')
+                  console.error('Looking for socketId:', bulletPlayerId)
+                  console.error('Available socketIds:', Object.keys(playerSessions))
+                }
+              } else {
+                console.error('ERROR: No sessionStats for killer')
+                console.error('Looking for socketId:', bulletPlayerId)
+                console.error('Available sessionStats:', Object.keys(sessionStats))
               }
+              console.log('=== KILL EVENT END ===\n')
               
               // Send kill message to chat
               chatManager.addKillMessage(killer.username, player.username).then(killMsg => {
@@ -570,30 +829,84 @@ function updateGameState() {
             // Track deaths for victim
             if (sessionStats[playerObj.id]) {
               sessionStats[playerObj.id].deaths += 1
+              console.log(`Death tracked for ${player.username}. Session deaths: ${sessionStats[playerObj.id].deaths}`)
+              
+              // Update victim stats in database immediately
+              const victimUserId = playerSessions[playerObj.id]
+              console.log(`Victim userId: ${victimUserId}, socketId: ${playerObj.id}`)
+              if (victimUserId) {
+                // Update database and emit new stats
+                Player.findByIdAndUpdate(
+                  victimUserId,
+                  { 
+                    $inc: { 
+                      'stats.totalDeaths': 1
+                    },
+                    $set: { 
+                      lastSeen: new Date(),
+                      lastDeathTime: new Date() // Save death time
+                    }
+                  },
+                  { new: true }
+                ).then(victimPlayer => {
+                  if (victimPlayer) {
+                    console.log(`Updated victim stats in DB. New total deaths: ${victimPlayer.stats.totalDeaths}`)
+                    io.to(playerObj.id).emit('statsUpdate', {
+                      totalKills: victimPlayer.stats.totalKills,
+                      totalDeaths: victimPlayer.stats.totalDeaths
+                    })
+                  } else {
+                    console.log('Victim player not found in database')
+                  }
+                }).catch(err => {
+                  console.error('Error updating victim stats:', err)
+                })
+              } else {
+                console.log('Victim userId not found in playerSessions')
+              }
+            } else {
+              console.log('No sessionStats for victim')
             }
             
-            io.to(playerObj.id).emit('death')
+            io.to(playerObj.id).emit('death', { respawnTime: 40 }) // Send respawn time to client
             
-            // Respawn with full health at safe position
-            player.health = player.maxHealth
+            // Remove player from grid temporarily
+            playerGrid.remove(playerObj.id)
             
-            // Find safe spawn position
-            let attempts = 0
-            do {
-              player.x = 100 + Math.random() * (gameState.arena.width - 200)
-              player.y = 100 + Math.random() * (gameState.arena.height - 200)
-              attempts++
-            } while (obstacleManager.checkCollision(player.x, player.y, 30) && attempts < 50)
-            
-            // Update respawned player position in grid
-            playerGrid.update({
-              id: playerObj.id,
-              x: player.x - 20,
-              y: player.y - 20,
-              width: 40,
-              height: 40
-            })
+            // Set respawn timer (40 seconds)
+            setTimeout(() => {
+              if (gameState.players[playerObj.id]) {
+                // Respawn with full health at safe position
+                player.health = player.maxHealth
+                
+                // Find safe spawn position
+                let attempts = 0
+                do {
+                  player.x = 100 + Math.random() * (gameState.arena.width - 200)
+                  player.y = 100 + Math.random() * (gameState.arena.height - 200)
+                  attempts++
+                } while (obstacleManager.checkCollision(player.x, player.y, 30) && attempts < 50)
+                
+                // Add player back to spatial grid
+                playerGrid.insert({
+                  id: playerObj.id,
+                  x: player.x - 20,
+                  y: player.y - 20,
+                  width: 40,
+                  height: 40
+                })
+                
+                // Notify client of respawn
+                io.to(playerObj.id).emit('respawn')
+              }
+            }, 40000) // 40 seconds
           }
+          
+          // NOW release the bullet after all operations are done
+          delete gameState.bullets[bulletId]
+          bulletGrid.remove(bulletId)
+          bulletPool.releaseBullet(bullet)
+          
           break
         }
       }
@@ -606,6 +919,40 @@ setInterval(async () => {
   await chatManager.clearOldMessages()
   console.log('Cleaned old chat messages')
 }, 3600000) // 1 hour
+
+// Periodic position save (every 5 seconds)
+setInterval(async () => {
+  const positionUpdates = []
+  
+  for (const socketId in gameState.players) {
+    const player = gameState.players[socketId]
+    const userId = playerSessions[socketId]
+    
+    if (userId && player) {
+      positionUpdates.push({
+        updateOne: {
+          filter: { _id: userId },
+          update: {
+            $set: {
+              'position.x': player.x,
+              'position.y': player.y,
+              lastSeen: new Date()
+            }
+          }
+        }
+      })
+    }
+  }
+  
+  if (positionUpdates.length > 0) {
+    try {
+      await Player.bulkWrite(positionUpdates)
+      console.log(`Saved positions for ${positionUpdates.length} players`)
+    } catch (error) {
+      console.error('Error saving player positions:', error)
+    }
+  }
+}, 5000) // 5 seconds
 
 httpServer.listen(SOCKET_PORT, () => {
   console.log(`Socket.IO server running on http://localhost:${SOCKET_PORT}`)

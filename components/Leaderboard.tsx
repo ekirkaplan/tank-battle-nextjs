@@ -109,7 +109,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div 
-        className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-blitz-bg/95 border border-blitz-neon/20 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col shadow-[0_0_30px_rgba(0,235,215,0.2)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -129,8 +129,8 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
               onClick={() => setLeaderboardType(type.value)}
               className={`px-3 py-1 rounded transition-colors ${
                 leaderboardType === type.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? 'bg-blitz-neon/20 text-blitz-neon border border-blitz-neon/50'
+                  : 'bg-blitz-bg/50 text-gray-300 hover:bg-blitz-neon/10 border border-transparent'
               }`}
             >
               {type.label}
@@ -149,13 +149,13 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                 <div
                   key={entry._id}
                   className={`flex items-center gap-4 p-3 rounded ${
-                    index < 3 ? 'bg-gray-800' : 'bg-gray-800/50'
+                    index < 3 ? 'bg-blitz-neon/10 border border-blitz-neon/20' : 'bg-blitz-bg/30 border border-transparent'
                   }`}
                 >
                   <div className={`text-2xl font-bold w-10 text-center ${
-                    index === 0 ? 'text-yellow-400' :
+                    index === 0 ? 'text-blitz-neon' :
                     index === 1 ? 'text-gray-300' :
-                    index === 2 ? 'text-orange-600' :
+                    index === 2 ? 'text-blitz-copper' :
                     'text-gray-500'
                   }`}>
                     {index + 1}

@@ -18,7 +18,14 @@ export async function GET(request: NextRequest) {
     const onlyPublic = searchParams.get('public') === 'true'
     
     // Get token to check if user wants their clan info
-    const token = request.cookies.get('token')?.value
+    let token = request.cookies.get('authToken')?.value
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7)
+      }
+    }
     if (token && !search) {
       try {
         const { payload } = await jwtVerify(token, JWT_SECRET)
@@ -69,7 +76,14 @@ export async function GET(request: NextRequest) {
 // POST - Create a new clan
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value
+    let token = request.cookies.get('authToken')?.value
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7)
+      }
+    }
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

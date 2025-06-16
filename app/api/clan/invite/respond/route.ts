@@ -12,7 +12,14 @@ const JWT_SECRET = new TextEncoder().encode(
 // POST - Respond to clan invite
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value
+    let token = request.cookies.get('authToken')?.value
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7)
+      }
+    }
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

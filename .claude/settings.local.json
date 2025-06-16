@@ -14,7 +14,14 @@
       "Bash(rg:*)",
       "mcp__brave-search__brave_web_search",
       "Bash(npm run dev:*)",
-      "mcp__memory__create_relations"
+      "mcp__memory__create_relations",
+      "mcp__mongodb__find",
+      "mcp__mongodb__listCollections",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npx tsx:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(mkdir:*)"
     ]
   },
   "enableAllProjectMcpServers": false

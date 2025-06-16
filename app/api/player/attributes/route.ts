@@ -9,8 +9,15 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export async function POST(request: NextRequest) {
   try {
-    // Get token from cookie
-    const token = request.cookies.get('token')?.value
+    // Get token from cookie or Authorization header
+    let token = request.cookies.get('authToken')?.value
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7)
+      }
+    }
     
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -56,8 +63,15 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from cookie
-    const token = request.cookies.get('token')?.value
+    // Get token from cookie or Authorization header
+    let token = request.cookies.get('authToken')?.value
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7)
+      }
+    }
     
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -75,6 +89,14 @@ export async function GET(request: NextRequest) {
     if (!player) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 })
     }
+    
+    // Log player stats for debugging
+    console.log('Player level data:', {
+      username: player.username,
+      level: player.level,
+      kills: player.stats.totalKills,
+      totalXP: player.level.totalExperience
+    })
     
     return NextResponse.json({
       attributes: player.attributes,

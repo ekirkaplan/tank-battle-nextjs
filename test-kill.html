@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kill Tracking Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Kill Tracking Test</h1>
+    <div id="status">Disconnected</div>
+    <div id="stats">
+        <h2>Stats:</h2>
+        <div>Kills: <span id="kills">0</span></div>
+        <div>Deaths: <span id="deaths">0</span></div>
+    </div>
+    <div id="log" style="border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin-top: 20px;"></div>
+
+    <script>
+        const JWT_SECRET = 'your-secret-key-change-this-in-production';
+        
+        // Simple JWT implementation
+        function base64UrlEncode(str) {
+            return btoa(str)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+        
+        function createJWT(payload) {
+            const header = { alg: 'HS256', typ: 'JWT' };
+            const encodedHeader = base64UrlEncode(JSON.stringify(header));
+            const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+            // Note: This is a simplified version - real JWT needs proper HMAC signing
+            return `${encodedHeader}.${encodedPayload}.fake-signature`;
+        }
+        
+        // Create token for ege user
+        const token = createJWT({ userId: '68505bc3f0df59004139926f' });
+        
+        const socket = io('http://localhost:3001', {
+            auth: { token }
+        });
+        
+        const log = (msg) => {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML = `<div>[${time}] ${msg}</div>` + logDiv.innerHTML;
+        };
+        
+        socket.on('connect', () => {
+            document.getElementById('status').textContent = 'Connected as ' + socket.id;
+            log('Connected!');
+        });
+        
+        socket.on('init', (data) => {
+            log(`Init received: ${data.playerData.username}, stats: ${JSON.stringify(data.playerData.stats)}`);
+            document.getElementById('kills').textContent = data.playerData.stats.totalKills;
+            document.getElementById('deaths').textContent = data.playerData.stats.totalDeaths;
+        });
+        
+        socket.on('statsUpdate', (stats) => {
+            log(`STATS UPDATE: ${JSON.stringify(stats)}`);
+            document.getElementById('kills').textContent = stats.totalKills;
+            document.getElementById('deaths').textContent = stats.totalDeaths;
+        });
+        
+        socket.on('death', () => {
+            log('DEATH EVENT RECEIVED');
+        });
+        
+        socket.on('levelUp', (data) => {
+            log(`LEVEL UP: Level ${data.newLevel}, +${data.attributePoints} points`);
+        });
+        
+        socket.on('disconnect', () => {
+            document.getElementById('status').textContent = 'Disconnected';
+            log('Disconnected');
+        });
+        
+        socket.on('connect_error', (error) => {
+            log(`Connection error: ${error.message}`);
+        });
+    </script>
+</body>
+</html>

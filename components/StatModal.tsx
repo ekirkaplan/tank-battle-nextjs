@@ -53,7 +53,9 @@ export default function StatModal({ isOpen, onClose, onStatsUpdate }: StatModalP
   const fetchPlayerStats = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/auth/me')
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include'
+      })
       if (response.ok) {
         const data = await response.json()
         console.log('Player data:', data.player)
@@ -110,6 +112,7 @@ export default function StatModal({ isOpen, onClose, onStatsUpdate }: StatModalP
           const response = await fetch('/api/player/assign-stat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ attribute })
           })
 

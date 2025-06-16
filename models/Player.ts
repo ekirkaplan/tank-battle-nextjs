@@ -33,8 +33,13 @@ export interface IPlayer extends Document {
     role: 'leader' | 'officer' | 'member'
   }
   tankColor: string
+  position: {
+    x: number
+    y: number
+  }
   createdAt: Date
   lastSeen: Date
+  lastDeathTime?: Date
   comparePassword(candidatePassword: string): Promise<boolean>
   updateStats(gameStats: any): Promise<IPlayer>
   addExperience(amount: number): Promise<{ leveledUp: boolean; newLevel: number }>
@@ -91,6 +96,10 @@ const playerSchema = new mongoose.Schema<IPlayer>({
       return `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`
     }
   },
+  position: {
+    x: { type: Number, default: -1 },
+    y: { type: Number, default: -1 }
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -98,6 +107,10 @@ const playerSchema = new mongoose.Schema<IPlayer>({
   lastSeen: {
     type: Date,
     default: Date.now
+  },
+  lastDeathTime: {
+    type: Date,
+    required: false
   }
 })
 

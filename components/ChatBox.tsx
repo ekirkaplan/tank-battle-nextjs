@@ -78,10 +78,10 @@ export default function ChatBox({ socket, isConnected }: ChatBoxProps) {
   }
 
   return (
-    <div className={`fixed bottom-4 left-4 bg-gray-900 bg-opacity-90 rounded-lg shadow-lg transition-all ${
+    <div className={`fixed bottom-4 left-4 bg-blitz-bg/90 border border-blitz-neon/20 rounded-lg shadow-[0_0_20px_rgba(0,235,215,0.15)] transition-all ${
       isMinimized ? 'w-48 h-10' : 'w-80 h-96'
     }`}>
-      <div className="flex items-center justify-between p-2 border-b border-gray-700">
+      <div className="flex items-center justify-between p-2 border-b border-blitz-neon/20">
         <h3 className="text-sm font-semibold">Chat</h3>
         <button
           onClick={() => setIsMinimized(!isMinimized)}
@@ -99,7 +99,7 @@ export default function ChatBox({ socket, isConnected }: ChatBoxProps) {
                 <span className="text-gray-500">[{formatTimestamp(msg.timestamp)}]</span>
                 {msg.type === 'global' && (
                   <>
-                    <span className="text-yellow-400 ml-1">{msg.username}:</span>
+                    <span className="text-blitz-neon ml-1">{msg.username}:</span>
                     <span className="text-gray-300 ml-1">{msg.message}</span>
                   </>
                 )}
@@ -111,7 +111,7 @@ export default function ChatBox({ socket, isConnected }: ChatBoxProps) {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-2 border-t border-gray-700">
+          <div className="p-2 border-t border-blitz-neon/20">
             <div className="flex gap-2">
               <input
                 ref={inputRef}

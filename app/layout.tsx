@@ -6,8 +6,8 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Tank Battle Arena',
-  description: 'Multiplayer tank battle game built with Next.js',
+  title: 'BLITZCORE - Multiplayer Tank Warfare',
+  description: 'Engage in epic multiplayer tank battles in BLITZCORE Arena',
 }
 
 export default function RootLayout({

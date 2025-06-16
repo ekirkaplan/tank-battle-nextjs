@@ -1,4 +1,4 @@
-# Tank Battle - Real-time Multiplayer Game
+# BLITZCORE - Real-time Multiplayer Tank Battle Game
 
 A sophisticated real-time multiplayer tank battle game built with Next.js and Socket.IO, featuring advanced game mechanics, clan systems, and optimized performance.
 
